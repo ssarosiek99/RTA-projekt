@@ -6,40 +6,36 @@ import sklearn
 import pandas as pd
 import lightgbm as ltb
 import random
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 
-# # Getting the data as JSON
-consumer = KafkaConsumer('data-stream',
-bootstrap_servers=['localhost:9092'],
-value_deserializer=lambda m: json.loads(m.decode('ascii')))
-
+consumer = KafkaConsumer('data-stream', bootstrap_servers=['localhost:9092'], value_deserializer=lambda m: json.loads(m.decode('ascii')))
 
 app = Flask(__name__)
 
-
-
-@app.route('/get-prediction/')
+@app.route('/get-prediction/', methods=['GET', 'POST'])
 def home():
     for message in consumer:
         print("%s key=%s value=%s" % (message.topic, message.key, message.value))
         global lat
         lat = message.value[1]
-        global len
-        len = message.value[2]
-        return(str((message.value[0])))
+        global lon
+        lon = message.value[2]
+        if request.method == 'POST':
+            return redirect('/get-prediction2/')
+        odp = str(message.value[0])[0:5] + " MJ"
+        return render_template('get_prediction.html', message=odp, custom_text = "Naciśnij przycisk żeby przejść na mapę. Nasłonecznienie to: ")
 
 @app.route('/get-prediction2/')
 def root():
-    markers=[
+    markers = [
         {
-        'lat': len,
-        'lon': lat,
-        'popup':'Jestesmy w'  
+            'lat': lon,
+            'lon': lat,
+            'popup': 'Jesteśmy w'
         }
     ]
-    return render_template('index.html',markers=markers )
+    return render_template('index.html', markers=markers)
 
 
 if __name__ == "__main__":
     app.run()
-
